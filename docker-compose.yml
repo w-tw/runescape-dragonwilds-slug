@@ -10,6 +10,8 @@ services:
     environment:
       - UPDATE_ON_START=true
     volumes:
+      - server-files:/opt/dragonwilds
+      - steam-data:/root/.local/share/Steam
       - savegames:/opt/dragonwilds/RSDragonwilds/Saved/Savegames
       - logs:/opt/dragonwilds/RSDragonwilds/Saved/Logs
     mem_limit: 8g
@@ -17,5 +19,7 @@ services:
     tty: true
 
 volumes:
+  server-files:
+  steam-data:
   savegames:
   logs:

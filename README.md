@@ -5,6 +5,7 @@ Dockerized dedicated server for [RuneScape: Dragonwilds](https://dragonwilds.run
 ## Requirements
 
 - Docker & Docker Compose
+- A **Steam account** that owns RuneScape: Dragonwilds (anonymous download is not supported for this app)
 - UDP port **7777** open on your firewall/router
 - Your RuneScape: Dragonwilds **Player ID** (found in-game: Settings > bottom of menu)
 
@@ -23,10 +24,12 @@ cd runescape-dragonwilds-slug
 cp .env.example .env
 ```
 
-Edit `.env` and fill in at minimum:
+Edit `.env` and fill in your values:
 
 | Variable | Required | Description |
 |---|---|---|
+| `STEAM_USER` | Yes | Steam account username |
+| `STEAM_PASS` | Yes | Steam account password |
 | `OWNER_ID` | Yes | Your in-game Player ID |
 | `SERVER_NAME` | Yes | Public server name |
 | `DEFAULT_WORLD_NAME` | No | World name (defaults to `SERVER_NAME`) |
@@ -40,6 +43,24 @@ docker compose up -d --build
 ```
 
 4. **Find your server in-game** -- go to the **Public** tab of the Worlds screen, search your exact `SERVER_NAME` (case-sensitive), and join.
+
+## Steam Guard / 2FA
+
+If your Steam account uses Steam Guard, the first run will fail because SteamCMD needs the auth code. To handle this:
+
+```bash
+# Run interactively the first time
+docker compose run --rm dragonwilds bash
+
+# Inside the container, run SteamCMD manually:
+steamcmd +force_install_dir /opt/dragonwilds +login YOUR_STEAM_USER +quit
+# Enter your Steam Guard code when prompted.
+# After success, exit the container.
+exit
+
+# Now start normally -- the auth token is cached in the steam-data volume
+docker compose up -d --build
+```
 
 ## Updating
 
@@ -55,8 +76,10 @@ To disable auto-update, set `UPDATE_ON_START=false` in `docker-compose.yml`.
 
 | Volume | Container Path | Purpose |
 |---|---|---|
-| `savegames` | `/opt/dragonwilds/RSDragonwilds/Saved/Savegames` | World save files |
-| `logs` | `/opt/dragonwilds/RSDragonwilds/Saved/Logs` | Server logs |
+| `server-files` | `/opt/dragonwilds` | Game server installation |
+| `steam-data` | `/root/.local/share/Steam` | SteamCMD auth tokens & cache |
+| `savegames` | `.../Saved/Savegames` | World save files |
+| `logs` | `.../Saved/Logs` | Server logs |
 
 ## Managing Worlds
 
@@ -67,7 +90,6 @@ To disable auto-update, set `UPDATE_ON_START=false` in `docker-compose.yml`.
    ```bash
    docker compose run --rm dragonwilds bash -c "cp /tmp/myworld.sav /opt/dragonwilds/RSDragonwilds/Saved/Savegames/"
    ```
-   Or copy directly into the named volume mount on the host.
 3. Start the server: `docker compose up -d`
 
 ### Backup saves
@@ -94,11 +116,15 @@ The server uses UDP port **7777** by default. If you need to change it, update t
 
 ## Troubleshooting
 
+- **"Missing configuration" from SteamCMD** -- anonymous login does not work; make sure `STEAM_USER` and `STEAM_PASS` are set in `.env`.
+- **Steam Guard prompt** -- see the Steam Guard section above for first-run interactive auth.
 - **Server not showing in list** -- check that UDP 7777 is open on your firewall and forwarded by your router.
 - **Version mismatch** -- restart the container to trigger an auto-update: `docker compose restart`.
 - **Can't join** -- port forwarding likely failed somewhere between you and your ISP. Check [portforward.com](http://portforward.com/) for router-specific guides.
+- **Binary not found** -- the entrypoint auto-detects the server binary; check `docker compose logs` for the directory listing it prints on failure.
 
 ## Reference
 
 - [Official Dedicated Server Guide](https://dragonwilds.runescape.com/news/how-to-dedicated-servers)
 - [RuneScape: Dragonwilds Wiki](https://dragonwilds.runescape.wiki/)
+- [Community Debian Setup Guide](https://github.com/Skerlord/Runescape-Dragonwilds-DebianSetup)

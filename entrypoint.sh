@@ -1,17 +1,28 @@
 #!/bin/bash
 set -e
 
-CONFIG_DIR="${SERVER_DIR}/RSDragonwilds/Saved/Config/Linux"
+CONFIG_DIR="${SERVER_DIR}/RSDragonwilds/Saved/Config/LinuxServer"
 CONFIG_FILE="${CONFIG_DIR}/DedicatedServer.ini"
 SAVEGAMES_DIR="${SERVER_DIR}/RSDragonwilds/Saved/Savegames"
 LOGS_DIR="${SERVER_DIR}/RSDragonwilds/Saved/Logs"
 
-# --- Update server on every start ---
+# --- Validate Steam credentials ---
+if [ -z "${STEAM_USER}" ]; then
+    echo "[entrypoint] ERROR: STEAM_USER is required (this app does not support anonymous download)."
+    exit 1
+fi
+
+STEAM_LOGIN="+login ${STEAM_USER}"
+if [ -n "${STEAM_PASS}" ]; then
+    STEAM_LOGIN="+login ${STEAM_USER} ${STEAM_PASS}"
+fi
+
+# --- Install / update server ---
 if [ "${UPDATE_ON_START}" != "false" ]; then
-    echo "[entrypoint] Updating dedicated server (app ${SERVER_APP_ID})..."
+    echo "[entrypoint] Installing/updating dedicated server (app ${SERVER_APP_ID})..."
     steamcmd \
         +force_install_dir "${SERVER_DIR}" \
-        +login anonymous \
+        ${STEAM_LOGIN} \
         +app_update "${SERVER_APP_ID}" validate \
         +quit
     echo "[entrypoint] Update complete."
@@ -43,8 +54,22 @@ EOF
 echo "[entrypoint] Config written to ${CONFIG_FILE}:"
 cat "${CONFIG_FILE}"
 
-# --- Launch server ---
-echo "[entrypoint] Starting RuneScape: Dragonwilds Dedicated Server..."
+# --- Determine the server binary ---
 cd "${SERVER_DIR}"
 
-exec ./RSDragonwilds.sh -log -NewConsole "$@"
+if [ -f "./RSDragonwildsServer.sh" ]; then
+    SERVER_BIN="./RSDragonwildsServer.sh"
+elif [ -f "./RSDragonwilds.sh" ]; then
+    SERVER_BIN="./RSDragonwilds.sh"
+else
+    echo "[entrypoint] Looking for server binary..."
+    SERVER_BIN=$(find . -maxdepth 1 -name "*.sh" -executable | head -1)
+    if [ -z "${SERVER_BIN}" ]; then
+        echo "[entrypoint] ERROR: No executable .sh found in ${SERVER_DIR}. Listing contents:"
+        ls -la "${SERVER_DIR}"
+        exit 1
+    fi
+fi
+
+echo "[entrypoint] Starting server with: ${SERVER_BIN}"
+exec ${SERVER_BIN} -log "$@"
