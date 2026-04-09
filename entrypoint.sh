@@ -57,7 +57,7 @@ fi
 chown -R steam:steam "${SERVER_DIR}"
 
 # --- Create directories ---
-gosu steam mkdir -p "${CONFIG_DIR}" "${SAVEGAMES_DIR}" "${LOGS_DIR}"
+mkdir -p "${CONFIG_DIR}" "${SAVEGAMES_DIR}" "${LOGS_DIR}"
 
 # --- Validate required env vars ---
 if [ -z "${OWNER_ID}" ]; then
@@ -69,29 +69,29 @@ if [ -z "${SERVER_NAME}" ]; then
     exit 1
 fi
 
-# --- Write or patch DedicatedServer.ini ---
-# If a config already exists (from a previous run), patch the values in place.
-# If not, write a fresh one. The server may use different key names than what
-# the docs say, so we write both known formats.
+# --- Write DedicatedServer.ini ---
 echo "[entrypoint] Writing config to ${CONFIG_FILE}..."
 
-gosu steam bash -c "cat > '${CONFIG_FILE}'" <<EOF
+cat > "${CONFIG_FILE}" <<EOF
 [DedicatedServer]
 OwnerId=${OWNER_ID}
-OwnerID=${OWNER_ID}
-Owner ID=${OWNER_ID}
 ServerName=${SERVER_NAME}
-Server Name=${SERVER_NAME}
 DefaultWorldName=${DEFAULT_WORLD_NAME:-${SERVER_NAME}}
-Default World Name=${DEFAULT_WORLD_NAME:-${SERVER_NAME}}
 AdminPassword=${ADMIN_PASSWORD:-changeme}
-Admin Password=${ADMIN_PASSWORD:-changeme}
 WorldPassword=${WORLD_PASSWORD:-}
-World Password=${WORLD_PASSWORD:-}
 EOF
+
+chown steam:steam "${CONFIG_FILE}"
 
 echo "[entrypoint] Config contents:"
 cat "${CONFIG_FILE}"
+
+# --- Verify file was written ---
+if [ ! -f "${CONFIG_FILE}" ]; then
+    echo "[entrypoint] ERROR: Failed to write config file!"
+    exit 1
+fi
+echo "[entrypoint] Config file verified at ${CONFIG_FILE}"
 
 # --- Determine the server binary ---
 cd "${SERVER_DIR}"
