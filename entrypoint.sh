@@ -74,13 +74,12 @@ if [ -z "${SERVER_NAME}" ]; then
     exit 1
 fi
 
-# --- Build config content ---
-CONFIG_CONTENT="[DedicatedServer]
-OwnerId=${OWNER_ID}
-ServerName=${SERVER_NAME}
-DefaultWorldName=${DEFAULT_WORLD_NAME:-${SERVER_NAME}}
-AdminPassword=${ADMIN_PASSWORD:-changeme}
-WorldPassword=${WORLD_PASSWORD:-}"
+# --- Build config content (no section header -- game uses custom parser) ---
+CONFIG_CONTENT="Owner ID=${OWNER_ID}
+Server Name=${SERVER_NAME}
+Default World Name=${DEFAULT_WORLD_NAME:-${SERVER_NAME}}
+Admin Password=${ADMIN_PASSWORD:-changeme}
+World Password=${WORLD_PASSWORD:-}"
 
 # --- Write to BOTH possible config paths ---
 for dir in "${CONFIG_DIR_A}" "${CONFIG_DIR_B}"; do
