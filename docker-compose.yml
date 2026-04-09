@@ -3,23 +3,18 @@ services:
     build: .
     container_name: dragonwilds-server
     restart: unless-stopped
+    stop_grace_period: 30s
     ports:
       - "7777:7777/udp"
     env_file:
       - .env
-    environment:
-      - UPDATE_ON_START=true
     volumes:
       - server-files:/opt/dragonwilds
-      - steam-data:/root/.local/share/Steam
       - savegames:/opt/dragonwilds/RSDragonwilds/Saved/Savegames
       - logs:/opt/dragonwilds/RSDragonwilds/Saved/Logs
     mem_limit: 8g
-    stdin_open: true
-    tty: true
 
 volumes:
   server-files:
-  steam-data:
   savegames:
   logs:
