@@ -1,0 +1,21 @@
+services:
+  dragonwilds:
+    build: .
+    container_name: dragonwilds-server
+    restart: unless-stopped
+    ports:
+      - "7777:7777/udp"
+    env_file:
+      - .env
+    environment:
+      - UPDATE_ON_START=true
+    volumes:
+      - savegames:/opt/dragonwilds/RSDragonwilds/Saved/Savegames
+      - logs:/opt/dragonwilds/RSDragonwilds/Saved/Logs
+    mem_limit: 8g
+    stdin_open: true
+    tty: true
+
+volumes:
+  savegames:
+  logs:
