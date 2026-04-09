@@ -1,11 +1,12 @@
 #!/bin/bash
 set -e
 
-CONFIG_DIR="${SERVER_DIR}/RSDragonwilds/Saved/Config/LinuxServer"
-CONFIG_FILE="${CONFIG_DIR}/DedicatedServer.ini"
+SAVED_DIR="${SERVER_DIR}/RSDragonwilds/Saved"
+CONFIG_DIR_A="${SAVED_DIR}/Config/LinuxServer"
+CONFIG_DIR_B="${SAVED_DIR}/Config/Linux"
 BACKUP_DIR="${SERVER_DIR}/config_backups"
-SAVEGAMES_DIR="${SERVER_DIR}/RSDragonwilds/Saved/Savegames"
-LOGS_DIR="${SERVER_DIR}/RSDragonwilds/Saved/Logs"
+SAVEGAMES_DIR="${SAVED_DIR}/Savegames"
+LOGS_DIR="${SAVED_DIR}/Logs"
 
 # --- Validate Steam credentials ---
 if [ -z "${STEAM_USER}" ]; then
@@ -20,10 +21,12 @@ fi
 
 # --- Backup config before update (validate can wipe it) ---
 mkdir -p "${BACKUP_DIR}"
-if [ -f "${CONFIG_FILE}" ]; then
-    echo "[entrypoint] Backing up existing config..."
-    cp "${CONFIG_FILE}" "${BACKUP_DIR}/DedicatedServer.ini.bak"
-fi
+for dir in "${CONFIG_DIR_A}" "${CONFIG_DIR_B}"; do
+    if [ -f "${dir}/DedicatedServer.ini" ]; then
+        echo "[entrypoint] Backing up ${dir}/DedicatedServer.ini"
+        cp "${dir}/DedicatedServer.ini" "${BACKUP_DIR}/DedicatedServer.ini.bak"
+    fi
+done
 
 # --- Install / update server ---
 if [ "${UPDATE_ON_START}" != "false" ]; then
@@ -39,8 +42,10 @@ fi
 # --- Restore config after update ---
 if [ -f "${BACKUP_DIR}/DedicatedServer.ini.bak" ]; then
     echo "[entrypoint] Restoring config from backup..."
-    mkdir -p "${CONFIG_DIR}"
-    cp "${BACKUP_DIR}/DedicatedServer.ini.bak" "${CONFIG_FILE}"
+    for dir in "${CONFIG_DIR_A}" "${CONFIG_DIR_B}"; do
+        mkdir -p "${dir}"
+        cp "${BACKUP_DIR}/DedicatedServer.ini.bak" "${dir}/DedicatedServer.ini"
+    done
 fi
 
 # --- Copy Steam SDK files (required by some UE servers) ---
@@ -57,7 +62,7 @@ fi
 chown -R steam:steam "${SERVER_DIR}"
 
 # --- Create directories ---
-mkdir -p "${CONFIG_DIR}" "${SAVEGAMES_DIR}" "${LOGS_DIR}"
+mkdir -p "${CONFIG_DIR_A}" "${CONFIG_DIR_B}" "${SAVEGAMES_DIR}" "${LOGS_DIR}"
 
 # --- Validate required env vars ---
 if [ -z "${OWNER_ID}" ]; then
@@ -69,29 +74,26 @@ if [ -z "${SERVER_NAME}" ]; then
     exit 1
 fi
 
-# --- Write DedicatedServer.ini ---
-echo "[entrypoint] Writing config to ${CONFIG_FILE}..."
-
-cat > "${CONFIG_FILE}" <<EOF
-[DedicatedServer]
+# --- Build config content ---
+CONFIG_CONTENT="[DedicatedServer]
 OwnerId=${OWNER_ID}
 ServerName=${SERVER_NAME}
 DefaultWorldName=${DEFAULT_WORLD_NAME:-${SERVER_NAME}}
 AdminPassword=${ADMIN_PASSWORD:-changeme}
-WorldPassword=${WORLD_PASSWORD:-}
-EOF
+WorldPassword=${WORLD_PASSWORD:-}"
 
-chown steam:steam "${CONFIG_FILE}"
+# --- Write to BOTH possible config paths ---
+for dir in "${CONFIG_DIR_A}" "${CONFIG_DIR_B}"; do
+    INI="${dir}/DedicatedServer.ini"
+    echo "[entrypoint] Writing config to ${INI}..."
+    echo "${CONFIG_CONTENT}" > "${INI}"
+    chown steam:steam "${INI}"
+    echo "[entrypoint] Verifying ${INI}..."
+    ls -la "${INI}"
+    cat "${INI}"
+done
 
-echo "[entrypoint] Config contents:"
-cat "${CONFIG_FILE}"
-
-# --- Verify file was written ---
-if [ ! -f "${CONFIG_FILE}" ]; then
-    echo "[entrypoint] ERROR: Failed to write config file!"
-    exit 1
-fi
-echo "[entrypoint] Config file verified at ${CONFIG_FILE}"
+echo "[entrypoint] All config files written."
 
 # --- Determine the server binary ---
 cd "${SERVER_DIR}"
