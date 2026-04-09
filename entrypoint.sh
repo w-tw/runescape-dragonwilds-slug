@@ -17,7 +17,7 @@ if [ -n "${STEAM_PASS}" ]; then
     STEAM_LOGIN="+login ${STEAM_USER} ${STEAM_PASS}"
 fi
 
-# --- Install / update server ---
+# --- Install / update server (runs as root so steamcmd cache is accessible) ---
 if [ "${UPDATE_ON_START}" != "false" ]; then
     echo "[entrypoint] Installing/updating dedicated server (app ${SERVER_APP_ID})..."
     steamcmd \
@@ -28,8 +28,11 @@ if [ "${UPDATE_ON_START}" != "false" ]; then
     echo "[entrypoint] Update complete."
 fi
 
+# --- Fix ownership after steamcmd runs as root ---
+chown -R steam:steam "${SERVER_DIR}"
+
 # --- Create directories ---
-mkdir -p "${CONFIG_DIR}" "${SAVEGAMES_DIR}" "${LOGS_DIR}"
+gosu steam mkdir -p "${CONFIG_DIR}" "${SAVEGAMES_DIR}" "${LOGS_DIR}"
 
 # --- Generate DedicatedServer.ini from environment variables ---
 if [ -z "${OWNER_ID}" ]; then
@@ -42,7 +45,7 @@ if [ -z "${SERVER_NAME}" ]; then
     exit 1
 fi
 
-cat > "${CONFIG_FILE}" <<EOF
+gosu steam bash -c "cat > '${CONFIG_FILE}'" <<EOF
 [DedicatedServer]
 OwnerID=${OWNER_ID}
 ServerName=${SERVER_NAME}
@@ -71,5 +74,5 @@ else
     fi
 fi
 
-echo "[entrypoint] Starting server with: ${SERVER_BIN}"
-exec ${SERVER_BIN} -log "$@"
+echo "[entrypoint] Starting server as user 'steam' with: ${SERVER_BIN}"
+exec gosu steam ${SERVER_BIN} -log "$@"

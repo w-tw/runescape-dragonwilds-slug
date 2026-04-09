@@ -8,10 +8,13 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         lib32stdc++6 \
         lib32gcc-s1 \
-        ca-certificates && \
+        ca-certificates \
+        gosu && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p ${SERVER_DIR}
+RUN useradd -m -s /bin/bash steam && \
+    mkdir -p ${SERVER_DIR} && \
+    chown -R steam:steam ${SERVER_DIR}
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
